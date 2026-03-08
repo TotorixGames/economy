@@ -11,7 +11,7 @@ public interface ReasonProvider {
     /**
      *
      */
-    ReasonProvider DEFAULT_VAULT = (_, _) -> "vault";
+    ReasonProvider DEFAULT_VAULT = (uuid, amount) -> "VAULT";
 
     /**
      * Gets the reason for a transaction.

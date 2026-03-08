@@ -16,18 +16,26 @@ dependencies {
 
 
 paper {
-    name = "cosmetics"
-    main = "studio.o7.cosmetics.CosmeticPlugin"
+    name = "EconomyProviderPlugin"
+    main = "it.einjojo.economy.EconomyPlugin"
     foliaSupported = true
     authors = listOf("EinJOJO")
-    description = "Cosmetics plugin"
+    description = "economy plugin"
     website = "https://einjojo.it"
     apiVersion = "1.21"
     version = rootProject.version.toString()
-    loader = "studio.o7.cosmetics.PluginLibrariesLoader"
+    loader = "it.einjojo.economy.PluginLibrariesLoader"
     generateLibrariesJson = true
     serverDependencies {
-        register("VAULT") {
+        register("Vault") {
+            required = false
+            load = PaperPluginDescription.RelativeLoadOrder.OMIT
+        }
+        register("TinyMarkets") {
+            required = false
+        }
+        register("zShop") {
+            required = false
             load = PaperPluginDescription.RelativeLoadOrder.OMIT
         }
     }

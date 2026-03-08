@@ -24,13 +24,23 @@ public interface EconomyService {
     double getBalanceByOnlinePlayer(Object onlinePlayer);
 
     /**
-     * Asynchronously retrieves the current balance for a given player.
+     * If the player is cached, the cached value will be returned.
+     * Otherwise, it asynchronously retrieves the current balance for a given player.
      * If the player does not have an account, 0.0 is returned.
      *
      * @param playerUuid The UUID of the player.
      * @return A CompletableFuture holding the player's balance.
      */
     CompletableFuture<Double> getBalance(@NotNull UUID playerUuid);
+
+    /**
+     * Asynchronously retrieves the current balance for a given player, bypassing any cache.
+     * If the player does not have an account, 0.0 is returned.
+     *
+     * @param playerUuid The UUID of the player.
+     * @return A CompletableFuture holding the player's balance.
+     */
+    CompletableFuture<Double> loadBalance(@NotNull UUID playerUuid);
 
     /**
      * Asynchronously checks if a player has an account in the economy system.

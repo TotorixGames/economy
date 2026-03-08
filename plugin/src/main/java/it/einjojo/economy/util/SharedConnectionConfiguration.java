@@ -3,6 +3,7 @@ package it.einjojo.economy.util;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.zaxxer.hikari.HikariConfig;
+import io.lettuce.core.RedisURI;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -13,7 +14,7 @@ import java.nio.file.Paths;
 /**
  * @version 2.0.0
  */
-@Getter
+
 public class SharedConnectionConfiguration {
     private static final Gson GSON = new GsonBuilder()
             .setPrettyPrinting()
@@ -40,6 +41,14 @@ public class SharedConnectionConfiguration {
         } catch (IOException e) {
             throw new RuntimeException("Failed to load connections.json", e);
         }
+    }
+
+    public RedisConnectionConfiguration getRedis() {
+        return redis;
+    }
+
+    public PostgresConfiguration getPostgres() {
+        return postgres;
     }
 
     public record RedisConnectionConfiguration(String host, int port, String username, String password,

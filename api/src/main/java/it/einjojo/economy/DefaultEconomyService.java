@@ -144,6 +144,14 @@ public class DefaultEconomyService implements EconomyService {
 
     @Override
     public CompletableFuture<Double> getBalance(@NotNull UUID playerUuid) {
+        if (syncCache != null && syncCache.isCached(playerUuid)) {
+            return CompletableFuture.completedFuture(syncCache.getBalance(playerUuid));
+        }
+        return loadBalance(playerUuid);
+    }
+
+    @Override
+    public CompletableFuture<Double> loadBalance(@NotNull UUID playerUuid) {
         Objects.requireNonNull(playerUuid, "playerUuid cannot be null");
         log.debug("Requesting balance for UUID: {}", playerUuid);
         return supplyAsync(() -> repository.findAccountData(playerUuid), dbExecutor)

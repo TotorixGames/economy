@@ -29,14 +29,15 @@ paper {
     serverDependencies {
         register("Vault") {
             required = false
-            load = PaperPluginDescription.RelativeLoadOrder.OMIT
+            load = PaperPluginDescription.RelativeLoadOrder.BEFORE
         }
         register("TinyMarkets") {
             required = false
+            load = PaperPluginDescription.RelativeLoadOrder.AFTER
         }
         register("zShop") {
             required = false
-            load = PaperPluginDescription.RelativeLoadOrder.OMIT
+            load = PaperPluginDescription.RelativeLoadOrder.BEFORE
         }
     }
 }

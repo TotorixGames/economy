@@ -1,11 +1,13 @@
 package it.einjojo.economy;
 
 import com.zaxxer.hikari.HikariDataSource;
-import com.zaxxer.hikari.pool.HikariPool;
+import it.einjojo.economy.db.EconomyRepository;
 import it.einjojo.economy.db.PostgresEconomyRepository;
+import it.einjojo.economy.db.SqliteEconomyRepository;
 import it.einjojo.economy.hook.TinyMarketsHook;
 import it.einjojo.economy.hook.ZShopHook;
 import it.einjojo.economy.listener.ConnectionListener;
+import it.einjojo.economy.util.SQLLiteConnection;
 import it.einjojo.economy.util.SharedConnectionConfiguration;
 import it.einjojo.economy.vault.ReasonProvider;
 import it.einjojo.economy.vault.VaultEconomy;
@@ -14,6 +16,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.sql.SQLException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -34,20 +37,32 @@ public class EconomyPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        SharedConnectionConfiguration config = SharedConnectionConfiguration.load();
-        var hikariConfig = config.getPostgres().createHikariConfig();
-        hikariConfig.setMaximumPoolSize(3);
-        hikariConfig.setMinimumIdle(3);
-        hikariConfig.setPoolName("EconomyProvider");
+
+        EconomyRepository economyRepository;
         try {
+            SharedConnectionConfiguration config = SharedConnectionConfiguration.load();
+            var hikariConfig = config.getPostgres().createHikariConfig();
+            hikariConfig.setMaximumPoolSize(3);
+            hikariConfig.setMinimumIdle(3);
+            hikariConfig.setPoolName("EconomyProvider");
             dataSource = new HikariDataSource(hikariConfig);
-        } catch (HikariPool.PoolInitializationException poolInitializationException) {
-            getSLF4JLogger().error("Failed to connect to the database using {}, disabling plugin!", config.getPostgres(), poolInitializationException);
-            Bukkit.getPluginManager().disablePlugin(this);
-            return;
+            economyRepository = new PostgresEconomyRepository(dataSource::getConnection, "economy");
+        } catch (Exception exception) {
+            getSLF4JLogger().warn("""
+                    Failed to initialize Postgres connection, falling back to SQLite. 
+                    This may be caused by a missing or invalid config file, or by a failure to connect 
+                    to the database. Check the logs for more details.
+                    """, exception);
+            try {
+                economyRepository = new SqliteEconomyRepository(new SQLLiteConnection(this));
+            } catch (SQLException e) {
+                getSLF4JLogger().error("Failed to initialize economy repository, plugin cannot function!", e);
+                getServer().getPluginManager().disablePlugin(this);
+                return;
+            }
         }
-        PostgresEconomyRepository repository = new PostgresEconomyRepository(dataSource::getConnection, "economy");
-        economyService = new DefaultEconomyService(repository, null, executorService);
+
+        economyService = new DefaultEconomyService(economyRepository, null, executorService);
         economyService.initialize();
         economyService.setSyncCache(cache);
         registerService(EconomyService.class, economyService);

@@ -1,8 +1,8 @@
 package it.einjojo.economy.hook;
 
 
-import fr.maxlego08.zshop.api.economy.ShopEconomy;
-import fr.maxlego08.zshop.api.event.events.ZShopEconomyRegisterEvent;
+import fr.maxlego08.shop.api.economy.ShopEconomy;
+import fr.maxlego08.shop.api.event.events.ZShopEconomyRegisterEvent;
 import it.einjojo.economy.EconomyPlugin;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;

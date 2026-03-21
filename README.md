@@ -1,18 +1,32 @@
 ![Economy API](title.png)
 
 
-Often I find myself setting up a custom economy on a mineraft server. Thus, I needed a solution that always fits. This is a java-library that manages an economic balance assigned to UUID. 
-It should support float transactions and be multi-instance compatible.
+Often I find myself setting up a custom economy on a minecraft server. Thus, I needed a solution that always fits. This is a java-library that manages an economic balance assigned to UUID.
+It supports float transactions and is multi-instance compatible.
 
-This library needs to be shaded and is not a plugin.
+This project consists of two modules:
+- **`plugin`** — A Paper plugin (`EconomyProviderPlugin`) that wires everything together and registers services via the Bukkit Service API.
+- **`api`** — A library module exposing the interfaces and data types you use in your own plugins.
 
 Javadocs: [https://javadocs.einjojo.it/economy](https://javadocs.einjojo.it/economy/)
 
 ---
 
+# Using the API on a Paper Server
 
+The plugin registers the following services via Bukkit's `ServicesManager`:
 
-# Usage
+| Service class | Description |
+|---|---|
+| `it.einjojo.economy.EconomyService` | Async economy operations (deposit, withdraw, set balance, …) |
+| `it.einjojo.economy.EconomyCache` | Read-only cache for online players |
+| `net.milkbowl.vault.economy.Economy` | Vault economy implementation (only when Vault is present) |
+
+### 1. Add the API dependency
+
+Add the `api` artifact as a `compileOnly` dependency. The plugin provides it at runtime on the server.
+
+**Gradle (Kotlin DSL)**
 ```kotlin
 repositories {
     maven {
@@ -22,85 +36,174 @@ repositories {
 }
 
 dependencies {
-    implementation("it.einjojo:economy:2.0.1")
+    compileOnly("it.einjojo:api:2.1.0-SNAPSHOT")
 }
 ```
-**[Javadocs](https://repo.einjojo.it/javadoc/releases/it/einjojo/economy/2.0.0)**
-### Create Service instance
-```java
-DataSource dataSource = //...
-JedisPool jedisPool = //...
-PostgresEconomyRepository repository = new PostgresEconomyRepository(dataSource::getConnection, "coins");
-JedisNotifier redisNotifier = new JedisNotifier(jedisPool, "coins_eco");
-EconomyService coinsService = new AsyncEconomyService(repository, redisNotifier, economyExecutorService);
-coinsService.initialize(); // this will call init() on repository which creates a database schema 
-// Use multiple currencies:
-PostgresEconomyRepository twoRepo = new PostgresEconomyRepository(dataSource::getConnection, "second_currency");
-twoRepo.init();
-EconomyService tokenService = new AsyncEconomyService(repository, null, economyExecutorService); // rarely used, no need to notify other instances
-      
+
+**Maven**
+```xml
+<repository>
+    <id>einjojo-releases</id>
+    <url>https://repo.einjojo.it/releases</url>
+</repository>
+
+<dependency>
+    <groupId>it.einjojo</groupId>
+    <artifactId>api</artifactId>
+    <version>2.1.0-SNAPSHOT</version>
+    <scope>provided</scope>
+</dependency>
 ```
-### Cache
 
-This is an example on how to use the cache.
+### 2. Declare the plugin dependency
+
+In your `paper-plugin.yml` (or `plugin.yml`) declare `EconomyProviderPlugin` as a dependency so that it is loaded before your plugin:
+
+```yaml
+# paper-plugin.yml
+dependencies:
+  server:
+    EconomyProviderPlugin:
+      load: BEFORE
+      required: true
+```
+
+### 3. Obtain the service
+
+Use Bukkit's `ServicesManager` to retrieve the registered `EconomyService` instance:
+
 ```java
-public class SyncEconomyCache implements JedisTransactionObserver.Listener, EconomyCache {
-    private final Cache<UUID, Double> cache;
-    private final JedisTransactionObserver observer;
-    private final Map<UUID, CompletableFuture<?>> completableFutureMap = new HashMap<>();
+import it.einjojo.economy.EconomyService;
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.RegisteredServiceProvider;
 
-    public EconomyCacheImpl(EconomyService economyService, JedisNotifier jedisNotifier) {
-        observer = jedisNotifier.createTransactionObserver();
-        observer.registerListener(this);
-        this.cache = Caffeine.newBuilder().expireAfterAccess(Duration.ofMinutes(10)).build();
-    }
+RegisteredServiceProvider<EconomyService> rsp =
+        Bukkit.getServicesManager().getRegistration(EconomyService.class);
 
-    public double getBalance(UUID uuid) { /* ... */    }
+if (rsp == null) {
+    // EconomyProviderPlugin is not loaded — handle gracefully
+    throw new IllegalStateException("EconomyService is not available!");
+}
+
+EconomyService economy = rsp.getProvider();
+```
+
+A common pattern is to retrieve and store the service once during `onEnable`:
+
+```java
+public class MyPlugin extends JavaPlugin {
+
+    private EconomyService economy;
 
     @Override
-    public boolean isCached(UUID uuid) { /* ... */   }
-
-    @Override
-    public void cacheBalance(UUID uuid, double v) { /* ... */    }
-
-    @Override
-    public void onTransaction(TransactionPayload transactionPayload) {
-        if (cache.getIfPresent(transactionPayload.uuid()) == null) { // ignore uncached updates
+    public void onEnable() {
+        RegisteredServiceProvider<EconomyService> rsp =
+                Bukkit.getServicesManager().getRegistration(EconomyService.class);
+        if (rsp == null) {
+            getLogger().severe("EconomyProviderPlugin not found! Disabling.");
+            Bukkit.getPluginManager().disablePlugin(this);
             return;
         }
-        cache.put(transactionPayload.uuid(), transactionPayload.newBalance());
+        economy = rsp.getProvider();
     }
-
 }
-
-// somewhere else
-EconomyService service =  // get it by your provider
-var cache = new EconomyCacheImpl(economyService, redisNotifier);
-economyService.setSyncCache(cache);
-
 ```
 
+### 4. Use the API
 
-## For Minecraft-Servers
-I made a plugin for paper servers that provides this API using the Service-API.
-https://github.com/EinJOJO/EconomyProviderPlugin
+All operations that touch the database are asynchronous and return a `CompletableFuture`. **Never** call `.join()` or `.get()` on the main server thread.
 
-**Full Changelog**: https://github.com/EinJOJO/economy/compare/1.6.1...2.0.0
+#### Check balance
+```java
+// Instant lookup for online players (from cache)
+double balance = economy.getBalanceByOnlinePlayer(player); // org.bukkit.entity.Player
 
-# Core Principles:
-- **Database as the Single Source of Truth:** PostgreSQL will hold the definitive balance for each UUID. All other systems (caches, notifications) derive their state from it.
+// Async lookup (cache-aware; falls back to database)
+economy.getBalance(player.getUniqueId()).thenAccept(bal ->
+    player.sendMessage("Your balance: " + bal)
+);
+```
 
-- **Asynchronous Operations:** Absolutely no blocking database or network I/O operations will occur on the calling thread (e.g., the Minecraft main server thread). All API methods involving I/O will return CompletableFuture or a similar async construct.
+#### Deposit
+```java
+economy.deposit(player.getUniqueId(), 100.0, "quest-reward")
+    .thenAccept(result -> {
+        if (result.status() == TransactionStatus.SUCCESS) {
+            player.sendMessage("You received 100 coins!");
+        }
+    });
+```
 
-- **Optimistic Concurrency Control:** To handle simultaneous updates from different instances without complex distributed locking, we will use optimistic locking at the database level.
- 
-- **Decoupled Notifications:** Redis Pub/Sub will be used to broadcast balance changes after they are successfully committed to the database, allowing other instances or services to react (e.g., update local caches, refresh scoreboards).
- 
-- **Atomicity via Database:** Database transactions and atomic operations (`UPDATE ... SET balance = balance + ?`) will be used to ensure individual operations are applied correctly.
- 
+#### Withdraw
+```java
+economy.withdraw(player.getUniqueId(), 50.0, "shop-purchase")
+    .thenAccept(result -> {
+        switch (result.status()) {
+            case SUCCESS -> player.sendMessage("Purchase successful!");
+            case INSUFFICIENT_FUNDS -> player.sendMessage("Not enough coins.");
+            default -> player.sendMessage("Transaction failed: " + result.status());
+        }
+    });
+```
+
+#### Set balance
+```java
+economy.setBalance(player.getUniqueId(), 0.0, "admin-reset")
+    .thenAccept(result -> {
+        if (result.status() == TransactionStatus.SUCCESS) {
+            player.sendMessage("Balance reset to 0.");
+        }
+    });
+```
+
+#### Check account existence
+```java
+economy.hasAccount(player.getUniqueId())
+    .thenAccept(exists -> {
+        if (!exists) {
+            // first deposit will create the account automatically
+        }
+    });
+```
+
+### TransactionResult
+
+Every mutating operation returns a `CompletableFuture<TransactionResult>`. The result carries:
+
+| Field | Type | Description |
+|---|---|---|
+| `status()` | `TransactionStatus` | Outcome of the transaction |
+| `newBalance()` | `Optional<Double>` | New balance on `SUCCESS` |
+| `change()` | `double` | The amount added or subtracted |
+
+**TransactionStatus values:**
+
+| Status | Meaning |
+|---|---|
+| `SUCCESS` | Operation completed successfully |
+| `INSUFFICIENT_FUNDS` | Player did not have enough funds |
+| `ACCOUNT_NOT_FOUND` | No account exists for the player |
+| `INVALID_AMOUNT` | Amount was zero or negative |
+| `FAILED_CONCURRENCY` | Optimistic lock failed after all retries |
+| `ERROR` | Unexpected error (see server logs) |
+
+---
+
+# Core Principles
+
+- **Database as the Single Source of Truth:** PostgreSQL holds the definitive balance for each UUID. All other systems (caches, notifications) derive their state from it.
+
+- **Asynchronous Operations:** No blocking database or network I/O occurs on the calling thread (e.g. the Minecraft main server thread). All API methods involving I/O return `CompletableFuture`.
+
+- **Optimistic Concurrency Control:** Simultaneous updates from different instances are handled via optimistic locking at the database level — no distributed locks required.
+
+- **Decoupled Notifications:** Redis Pub/Sub broadcasts balance changes after they are successfully committed to the database, allowing other instances to update their local caches.
+
+- **Atomicity via Database:** Atomic SQL operations (`UPDATE ... SET balance = balance + ?`) ensure individual operations are applied correctly.
+
 _Engineered using Gemini 2.5 Pro_
 
-
+---
 
 ##### Multi-Instance Synchronization Flow
 
@@ -130,3 +233,4 @@ _Engineered using Gemini 2.5 Pro_
     Other Instances (C, D, etc.): Subscribe to the Redis channel. When they receive the messages from A and B, they know the confirmed balance changes and can update their local state/UI accordingly without hitting the database themselves just for notification.
 
 
+**Full Changelog**: https://github.com/EinJOJO/economy/compare/1.6.1...2.0.0

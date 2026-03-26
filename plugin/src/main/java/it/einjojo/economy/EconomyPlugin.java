@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 
 public class EconomyPlugin extends JavaPlugin {
     private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
-    private final OnlinePlayerEconomyCache cache = new OnlinePlayerEconomyCache();
     private HikariDataSource dataSource;
     private DefaultEconomyService economyService;
 
@@ -37,8 +36,9 @@ public class EconomyPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-
         EconomyRepository economyRepository;
+        EconomyRepository creditsRepo;
+        EconomyRepository reputationRepo;
         try {
             SharedConnectionConfiguration config = SharedConnectionConfiguration.load();
             var hikariConfig = config.getPostgres().createHikariConfig();
@@ -47,14 +47,19 @@ public class EconomyPlugin extends JavaPlugin {
             hikariConfig.setPoolName("EconomyProvider");
             dataSource = new HikariDataSource(hikariConfig);
             economyRepository = new PostgresEconomyRepository(dataSource::getConnection, "economy");
+            creditsRepo = new PostgresEconomyRepository(dataSource::getConnection, "eco_credits");
+            reputationRepo = new PostgresEconomyRepository(dataSource::getConnection, "eco_rep");
         } catch (Exception exception) {
             getSLF4JLogger().warn("""
-                    Failed to initialize Postgres connection, falling back to SQLite. 
-                    This may be caused by a missing or invalid config file, or by a failure to connect 
+                    Failed to initialize Postgres connection, falling back to SQLite.
+                    This may be caused by a missing or invalid config file, or by a failure to connect
                     to the database. Check the logs for more details.
                     """, exception);
             try {
-                economyRepository = new SqliteEconomyRepository(new SQLLiteConnection(this));
+                SQLLiteConnection connection = new SQLLiteConnection(this);
+                economyRepository = new SqliteEconomyRepository(connection);
+                creditsRepo = new SqliteEconomyRepository(connection, "eco_credits");
+                reputationRepo = new SqliteEconomyRepository(connection, "eco_rep");
             } catch (SQLException e) {
                 getSLF4JLogger().error("Failed to initialize economy repository, plugin cannot function!", e);
                 getServer().getPluginManager().disablePlugin(this);
@@ -64,10 +69,15 @@ public class EconomyPlugin extends JavaPlugin {
 
         economyService = new DefaultEconomyService(economyRepository, null, executorService);
         economyService.initialize();
-        economyService.setSyncCache(cache);
+        economyService.setSyncCache(new OnlinePlayerEconomyCache());
+        EconomyService creditService = new DefaultEconomyService(creditsRepo, null, executorService);
+        EconomyService reputationService = new DefaultEconomyService(reputationRepo, null, executorService);
+        CurrencyManager currencyManager = new CurrencyManager(economyService);
+        currencyManager.registerCurrency("credits", creditService);
+        registerService(CurrencyManager.class, currencyManager);
         registerService(EconomyService.class, economyService);
-        registerService(EconomyCache.class, cache);
-        getServer().getPluginManager().registerEvents(new ConnectionListener(economyService, cache), this);
+        registerService(EconomyCache.class, economyService.cache());
+        getServer().getPluginManager().registerEvents(new ConnectionListener(currencyManager), this);
 
         try {
             if (Bukkit.getPluginManager().getPlugin("TinyMarkets") != null) {
@@ -105,9 +115,6 @@ public class EconomyPlugin extends JavaPlugin {
         return dataSource;
     }
 
-    public EconomyCache cache() {
-        return cache;
-    }
 
     public ExecutorService executorService() {
         return executorService;

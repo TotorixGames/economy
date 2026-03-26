@@ -107,4 +107,6 @@ public interface EconomyService {
      */
     @Nullable EconomyNotifier getNotifier();
 
+    @Nullable EconomyCache cache();
+
 }

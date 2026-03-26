@@ -82,8 +82,8 @@ public class VaultEconomy implements Economy {
 
     @Override
     public double getBalance(OfflinePlayer player) {
-        EconomyCache cache = plugin.cache();
-        if (cache.isCached(player.getUniqueId())) {
+        EconomyCache cache = plugin.economyService().cache();
+        if (cache != null && cache.isCached(player.getUniqueId())) {
             return cache.getBalance(player.getUniqueId());
         }
         return plugin.economyService().getBalance(player.getUniqueId()).join();

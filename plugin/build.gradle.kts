@@ -16,7 +16,7 @@ dependencies {
 
 
 paper {
-    name = "EconomyProviderPlugin"
+    name = "pgEconomy"
     main = "it.einjojo.economy.EconomyPlugin"
     foliaSupported = true
     authors = listOf("EinJOJO")

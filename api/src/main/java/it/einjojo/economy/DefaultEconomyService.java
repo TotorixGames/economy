@@ -365,5 +365,10 @@ public class DefaultEconomyService implements EconomyService {
         return notifier;
     }
 
+    @Override
+    public @Nullable EconomyCache cache() {
+        return syncCache;
+    }
+
 
 }

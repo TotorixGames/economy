@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 public class DefaultEconomyService implements EconomyService {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultEconomyService.class);
-
+    private CompletableFuture<Void> initFuture;
     private final @NotNull EconomyRepository repository;
     private @Nullable EconomyCache syncCache;
     private final @Nullable EconomyNotifier notifier;
@@ -70,6 +70,7 @@ public class DefaultEconomyService implements EconomyService {
         this.notificationExecutor = Objects.requireNonNull(notificationExecutor, "notificationExecutor cannot be null");
         this.maxRetries = Math.max(0, maxRetries); // Ensure non-negative
         this.retryDelayMillis = Math.max(0, retryDelayMillis); // Ensure non-negative
+        initialize();
     }
 
     /**
@@ -115,9 +116,10 @@ public class DefaultEconomyService implements EconomyService {
             log.warn("Provided a initialized instance of repository. Skipping init.");
             if (economyRepository.isInit()) return CompletableFuture.completedFuture(null);
         }
-        log.info("Initializing Economy Service asynchronously...");
         // Run ensureSchemaExists on the DB executor
-        return runAsync(repository::init, dbExecutor)
+        if (initFuture != null) return initFuture;
+        log.info("Initializing Economy Service asynchronously...");
+        initFuture = runAsync(repository::init, dbExecutor)
                 .whenComplete((res, ex) -> {
                     if (ex != null) {
                         log.error("Economy Service initialization failed!", ex);
@@ -125,6 +127,7 @@ public class DefaultEconomyService implements EconomyService {
                         log.info("Economy Service initialization successful.");
                     }
                 });
+        return initFuture;
     }
 
     @Override

@@ -36,3 +36,22 @@ tasks {
         useJUnitPlatform()
     }
 }
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            artifactId = "economy"
+            from(components["java"])
+        }
+    }
+    repositories {
+        maven {
+            name = "einjojo"
+            url = uri("https://repo.einjojo.it/releases")
+            credentials {
+                username = System.getenv("MAVEN_USERNAME")
+                password = System.getenv("MAVEN_PASSWORD")
+            }
+        }
+    }
+}

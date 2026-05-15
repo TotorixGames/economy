@@ -74,6 +74,8 @@ public class EconomyPlugin extends JavaPlugin {
         EconomyService reputationService = new DefaultEconomyService(reputationRepo, null, executorService);
         CurrencyManager currencyManager = new CurrencyManager(economyService);
         currencyManager.registerCurrency("credits", creditService);
+        currencyManager.registerCurrency("rp", reputationService);
+        currencyManager.registerCurrency("reputation", reputationService);
         registerService(CurrencyManager.class, currencyManager);
         registerService(EconomyService.class, economyService);
         registerService(EconomyCache.class, economyService.cache());

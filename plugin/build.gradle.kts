@@ -8,7 +8,7 @@ dependencies {
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
     paperLibrary("com.github.ben-manes.caffeine:caffeine:3.1.8")
     paperLibrary("com.zaxxer:HikariCP:7.0.2")
-    paperLibrary("org.postgresql:postgresql:42.7.8")
+    paperLibrary("org.postgresql:postgresql:42.7.11")
     implementation("io.lettuce:lettuce-core:6.8.1.RELEASE")
     api(project(":api"))
     compileOnly(fileTree("../libs"))

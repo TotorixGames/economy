@@ -27,7 +27,7 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:1.21.4") // JUnit 5 Integration
     testImplementation("org.testcontainers:postgresql:1.21.4")
     testImplementation("com.zaxxer:HikariCP:5.1.0")
-    testImplementation("org.postgresql:postgresql:42.7.3")
+    testImplementation("org.postgresql:postgresql:42.7.11")
     testImplementation("redis.clients:jedis:6.0.0")
 }
 

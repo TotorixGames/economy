@@ -23,7 +23,7 @@ dependencies {
     testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
     testImplementation("org.awaitility:awaitility:4.3.0")
 
-    testImplementation("org.testcontainers:testcontainers:2.0.3")
+    testImplementation("org.testcontainers:testcontainers:2.0.5")
     testImplementation("org.testcontainers:junit-jupiter:1.21.4") // JUnit 5 Integration
     testImplementation("org.testcontainers:postgresql:1.21.4")
     testImplementation("com.zaxxer:HikariCP:5.1.0")

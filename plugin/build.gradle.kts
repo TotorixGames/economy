@@ -1,7 +1,7 @@
 import net.minecrell.pluginyml.paper.PaperPluginDescription
 
 plugins {
-    id("de.eldoria.plugin-yml.paper") version "0.8.0"
+    id("de.eldoria.plugin-yml.paper") version "0.9.0"
 }
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")

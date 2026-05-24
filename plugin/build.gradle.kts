@@ -6,7 +6,7 @@ plugins {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
-    paperLibrary("com.github.ben-manes.caffeine:caffeine:3.1.8")
+    paperLibrary("com.github.ben-manes.caffeine:caffeine:3.2.4")
     paperLibrary("com.zaxxer:HikariCP:7.0.2")
     paperLibrary("org.postgresql:postgresql:42.7.8")
     implementation("io.lettuce:lettuce-core:6.8.1.RELEASE")

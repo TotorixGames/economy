@@ -6,11 +6,11 @@ plugins {
 dependencies {
     compileOnly("org.slf4j:slf4j-api:2.0.9")
     compileOnly("org.jetbrains:annotations:26.0.2")
-    compileOnly("com.google.code.gson:gson:2.13.2")
+    compileOnly("com.google.code.gson:gson:2.14.0")
     compileOnly("redis.clients:jedis:7.2.0")
 
 
-    testImplementation("com.google.code.gson:gson:2.13.2")
+    testImplementation("com.google.code.gson:gson:2.14.0")
     testImplementation("org.slf4j:slf4j-api:2.0.9")
     testImplementation("org.slf4j:slf4j-simple:2.0.17")
     testImplementation("redis.clients:jedis:7.2.0")

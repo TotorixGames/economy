@@ -3,7 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
     id("java-library")
     id("maven-publish")
-    id("com.gradleup.shadow") version "9.0.0"
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 allprojects {
